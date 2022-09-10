@@ -162,6 +162,21 @@ common_prog(int nargs, char **args)
 }
 
 /*
+ * Command for enabling DB_THREADS messages
+ */
+static
+int
+cmd_dth(int nargs, char **args)
+{
+	(void)nargs;
+	(void)args;
+
+	dbflags = (uint32_t)0x0010;
+
+	return 0;
+}
+
+/*
  * Command for running an arbitrary userlevel program.
  */
 static
@@ -437,6 +452,7 @@ static const char *opsmenu[] = {
 	"[sync]    Sync filesystems          ",
 	"[panic]   Intentional panic         ",
 	"[q]       Quit and shut down        ",
+	"[dth]     Enable DB_THREADS messages  ",
 	NULL
 };
 
@@ -549,6 +565,7 @@ static struct {
 	{ "q",		cmd_quit },
 	{ "exit",	cmd_quit },
 	{ "halt",	cmd_quit },
+	{ "dth", 	cmd_dth },
 
 #if OPT_SYNCHPROBS
 	/* in-kernel synchronization problem(s) */

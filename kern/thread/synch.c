@@ -216,6 +216,8 @@ lock_acquire(struct lock *lock)
          */
         // KASSERT(!lock_do_i_hold());
         KASSERT(lock != NULL);
+        KASSERT(!lock_do_i_hold(lock));
+
         spinlock_acquire(&lock->lk_lock);
 
         while(lock->lk_owner) {
@@ -252,7 +254,6 @@ lock_do_i_hold(struct lock *lock)
         KASSERT(lock != NULL);
 
         return (lock->lk_owner == curthread);
-        
 }
 
 ////////////////////////////////////////////////////////////
@@ -277,6 +278,14 @@ cv_create(const char *name)
         }
         
         // add stuff here as needed
+
+        cv->cv_wchan = wchan_create(cv->cv_name);
+
+        if (cv->cv_wchan == NULL) {
+                kfree(cv->cv_name);
+                kfree(cv);
+                return NULL;
+        }
         
         return cv;
 }
@@ -287,6 +296,10 @@ cv_destroy(struct cv *cv)
         KASSERT(cv != NULL);
 
         // add stuff here as needed
+
+        if(cv->cv_wchan != NULL) {
+                wchan_destroy(cv->cv_wchan);
+        }
         
         kfree(cv->cv_name);
         kfree(cv);
@@ -296,15 +309,31 @@ void
 cv_wait(struct cv *cv, struct lock *lock)
 {
         // Write this
-        (void)cv;    // suppress warning until code gets written
-        (void)lock;  // suppress warning until code gets written
+
+        wchan_lock(cv->cv_wchan);
+        // Releases the lock associated with the cv
+        lock_release(lock);
+        // Causes the calling thread to block
+        wchan_sleep(cv->cv_wchan);
+        // Once the thread is unblocked it reacquires the lock
+        lock_acquire(lock);
+
+        // (void)cv;    // suppress warning until code gets written
+        // (void)lock;  // suppress warning until code gets written
 }
 
 void
 cv_signal(struct cv *cv, struct lock *lock)
 {
         // Write this
-	(void)cv;    // suppress warning until code gets written
+
+        // If threads are blocked on the signaled cv,
+        if (!wchan_isempty(cv->cv_wchan)) {
+                // then one of those threads is unblocked.
+                wchan_wakeone(cv->cv_wchan);
+        }
+
+	// (void)cv;    // suppress warning until code gets written
 	(void)lock;  // suppress warning until code gets written
 }
 
@@ -312,6 +341,10 @@ void
 cv_broadcast(struct cv *cv, struct lock *lock)
 {
 	// Write this
-	(void)cv;    // suppress warning until code gets written
+        if (!wchan_isempty(cv->cv_wchan)) {
+                // unblocks all threads that are blocked on the condition variable.
+                wchan_wakeall(cv->cv_wchan);
+        }
+        // (void)cv;    // suppress warning until code gets written
 	(void)lock;  // suppress warning until code gets written
 }

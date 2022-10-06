@@ -23,6 +23,11 @@
  */
 static struct semaphore *intersectionSem;
 
+static struct semaphore *toNorthSem;
+static struct semaphore *toSouthSem;
+static struct semaphore *toWestSem;
+static struct semaphore *toEastSem;
+
 
 /* 
  * The simulation driver will call this function once before starting

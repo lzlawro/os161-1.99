@@ -51,10 +51,7 @@ mips-harvard-os161-gcc -g -Wall -W -Wwrite-strings -Wmissing-prototypes  -std=gn
 mips-harvard-os161-gcc -g -Wall -W -Wwrite-strings -Wmissing-prototypes  -std=gnu99 -mno-abicalls -fno-pic -ffixed-23 -nostdinc -I../../include -I../../dev -I. -Iincludelinks -ffreestanding -D_KERNEL -DUW -c ../../synchprobs/catmouse_synch.c
 mips-harvard-os161-gcc -g -Wall -W -Wwrite-strings -Wmissing-prototypes  -std=gnu99 -mno-abicalls -fno-pic -ffixed-23 -nostdinc -I../../include -I../../dev -I. -Iincludelinks -ffreestanding -D_KERNEL -DUW -c ../../synchprobs/traffic.c
 mips-harvard-os161-gcc -g -Wall -W -Wwrite-strings -Wmissing-prototypes  -std=gnu99 -mno-abicalls -fno-pic -ffixed-23 -nostdinc -I../../include -I../../dev -I. -Iincludelinks -ffreestanding -D_KERNEL -DUW -c ../../synchprobs/traffic_synch.c
-../../synchprobs/traffic_synch.c:26: warning: 'toNorthSem' defined but not used
-../../synchprobs/traffic_synch.c:27: warning: 'toSouthSem' defined but not used
-../../synchprobs/traffic_synch.c:28: warning: 'toWestSem' defined but not used
-../../synchprobs/traffic_synch.c:29: warning: 'toEastSem' defined but not used
+../../synchprobs/traffic_synch.c:49: warning: no previous prototype for 'intersection_change_light'
 mips-harvard-os161-gcc -g -Wall -W -Wwrite-strings -Wmissing-prototypes  -std=gnu99 -mno-abicalls -fno-pic -ffixed-23 -nostdinc -I../../include -I../../dev -I. -Iincludelinks -ffreestanding -D_KERNEL -DUW -c ../../synchprobs/whalemating.c
 mips-harvard-os161-gcc -g -Wall -W -Wwrite-strings -Wmissing-prototypes  -std=gnu99 -mno-abicalls -fno-pic -ffixed-23 -nostdinc -I../../include -I../../dev -I. -Iincludelinks -ffreestanding -D_KERNEL -DUW -c ../../syscall/file_syscalls.c
 mips-harvard-os161-gcc -g -Wall -W -Wwrite-strings -Wmissing-prototypes  -std=gnu99 -mno-abicalls -fno-pic -ffixed-23 -nostdinc -I../../include -I../../dev -I. -Iincludelinks -ffreestanding -D_KERNEL -DUW -c ../../syscall/loadelf.c
@@ -125,7 +122,7 @@ mips-harvard-os161-gcc -g -Wall -W -Wwrite-strings -Wmissing-prototypes  -std=gn
 mips-harvard-os161-ld   -nostdlib -T ../../arch/mips/conf/ldscript __printf.o snprintf.o atoi.o bzero.o memcpy.o memmove.o strcat.o strchr.o strcmp.o strcpy.o strlen.o strrchr.o strtok_r.o autoconf.o beep.o console.o random.o rtclock.o beep_ltimer.o con_lser.o emu.o emu_att.o lamebus.o lhd.o lhd_att.o lrandom.o lrandom_att.o lser.o lser_att.o ltimer.o ltimer_att.o ltrace.o ltrace_att.o random_lrandom.o rtclock_ltimer.o sfs_fs.o sfs_io.o sfs_vnode.o array.o bitmap.o bswap.o kgets.o kprintf.o misc.o queue.o uio.o proc.o main.o menu.o catmouse.o catmouse_synch.o traffic.o traffic_synch.o whalemating.o file_syscalls.o loadelf.o proc_syscalls.o runprogram.o time_syscalls.o arraytest.o bitmaptest.o fstest.o malloctest.o synchtest.o threadtest.o tt3.o uw-tests.o clock.o spinlock.o spl.o synch.o thread.o threadlist.o device.o devnull.o vfscwd.o vfslist.o vfslookup.o vfspath.o vnode.o kmalloc.o uw-vmstats.o adddi3.o anddi3.o ashldi3.o ashrdi3.o cmpdi2.o divdi3.o iordi3.o lshldi3.o lshrdi3.o moddi3.o muldi3.o negdi2.o notdi2.o qdivrem.o subdi3.o ucmpdi2.o udivdi3.o umoddi3.o xordi3.o setjmp.o trap.o syscall.o cpu.o switch.o switchframe.o thread_machdep.o threadstart.o dumbvm.o ram.o copyinout.o cache-mips161.o exception-mips1.o tlb-mips1.o lamebus_machdep.o start.o vers.o -o kernel
 mips-harvard-os161-size kernel
    text	   data	    bss	    dec	    hex	filename
- 220152	    608	   8192	 228952	  37e58	kernel
+ 221240	    608	   8216	 230064	  382b0	kernel
 [ -d /os-compile ] || mkdir /os-compile
 cp kernel /os-compile/kernel-ASST1
 rm -f /os-compile/kernel

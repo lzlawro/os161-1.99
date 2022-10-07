@@ -24,7 +24,7 @@
 // static struct semaphore *intersectionSem;
 
 // The direction that is allowed to go
-static Direction currentDirection;
+static Direction currentLight;
 
 // Number of vehicles waiting from each direction: north, east, south, west
 // Do I need to declare this as volatile?
@@ -49,11 +49,11 @@ intersection_change_light(void)
 {
     int i, j;
     for (i = 0; i < 4; i += 1) {
-      j = (currentDirection + i + 1) % 4;
-      if (numWaiting[j] > 0 && j != currentDirection) {
-        currentDirection = j;
-        // kprintf("light changed to %d\n", currentDirection);
-        cv_broadcast(lightOpen[currentDirection], mutex);
+      j = (currentLight + i + 1) % 4;
+      if (numWaiting[j] > 0 && j != currentLight) {
+        currentLight = j;
+        // kprintf("light changed to %d\n", currentLight);
+        cv_broadcast(lightOpen[currentLight], mutex);
         break;
       }
     }
@@ -63,8 +63,8 @@ void
 intersection_sync_init(void)
 {
   /* replace this default implementation with your own implementation */
-  currentDirection = random() % 4;
-  // kprintf("light changed to %d\n", currentDirection);
+  currentLight = random() % 4;
+  // kprintf("light changed to %d\n", currentLight);
 
   numInIntersection = 0;
   unsigned int i;
@@ -147,14 +147,14 @@ intersection_before_entry(Direction origin, Direction destination)
   lock_acquire(mutex);
   numWaiting[origin] += 1;
 
-  if (numInIntersection == 0 && numWaiting[currentDirection] == 0) {
+  if (numInIntersection == 0 && numWaiting[currentLight] == 0) {
     intersection_change_light();
   }
 
   // kprintf("%d %d introduced, %d in intersection, %d, %d, %d, %d\n", origin, destination, numInIntersection, numWaiting[0], numWaiting[1], numWaiting[2], numWaiting[3]);
 
   // Wait until the current allowed direction is the origin
-  while (origin != currentDirection) {
+  while (origin != currentLight) {
     KASSERT(lightOpen[origin] != NULL);
     cv_wait(lightOpen[origin], mutex);
   }
@@ -192,7 +192,7 @@ intersection_after_exit(Direction origin, Direction destination)
   // Vehicle leaves the intersection
   numInIntersection -= 1;
   // kprintf("%d %d left the intersection, %d in intersection, %d, %d, %d, %d\n", origin, destination, numInIntersection, numWaiting[0], numWaiting[1], numWaiting[2], numWaiting[3]);
-  if (numInIntersection == 0 && numWaiting[currentDirection] == 0) {
+  if (numInIntersection == 0 && numWaiting[currentLight] == 0) {
     intersection_change_light();
   }
   lock_release(mutex);

@@ -100,18 +100,6 @@ void sys__exit(int exitcode) {
   struct proc *p = curproc;
   /* for now, just include this to keep the compiler from complaining about
      an unused variable */
-  #if OPT_A2
-  if (p->p_parent != NULL) {
-    p->p_exited = true;
-    p->p_exitcode = _MKWAIT_EXIT(exitcode);
-
-    lock_acquire(p->p_mutex);
-    cv_broadcast(p->p_exited_cv, p->p_mutex);
-    lock_release(p->p_mutex);
-  }
-  #else
-  (void)exitcode;
-  #endif
 
   DEBUG(DB_SYSCALL,"Syscall: _exit(%d)\n",exitcode);
 
@@ -133,7 +121,21 @@ void sys__exit(int exitcode) {
 
   /* if this is the last user process in the system, proc_destroy()
      will wake up the kernel menu thread */
+  #if OPT_A2
+  p->p_exitcode = _MKWAIT_EXIT(exitcode);
+  p->p_exited = true;
+
+  lock_acquire(p->p_mutex);
+  cv_broadcast(p->p_exited_cv, p->p_mutex);
+  lock_release(p->p_mutex);
+
+  if (p->p_parent == NULL) {
+    proc_destroy(p);
+  }
+  #else
+  (void)p_exitcode;
   proc_destroy(p);
+  #endif
   
   thread_exit();
   /* thread_exit() does not return, so we should never get here */
@@ -198,7 +200,7 @@ sys_waitpid(pid_t pid,
   }
 
   if (childproc == NULL) {
-    panic("waitpid() called by invalid process");
+    panic("waitpid() called by wrong process");
   }
 
   /* wait for the child to exit */
@@ -206,8 +208,8 @@ sys_waitpid(pid_t pid,
   while (!childproc->p_exited) {
     cv_wait(childproc->p_exited_cv, childproc->p_mutex);
   }
-  exitstatus = childproc->p_exitcode;
   lock_release(childproc->p_mutex);
+  exitstatus = childproc->p_exitcode;
 
   result = copyout((void *)&exitstatus,status,sizeof(int));
 

@@ -130,7 +130,6 @@ proc_create(const char *name)
 
 	proc->p_parent = NULL;
 	proc->p_exited = false;
-	proc->p_exitcode = 0;
 	#endif
 
 	return proc;
@@ -182,6 +181,11 @@ proc_destroy(struct proc *proc)
 		unsigned int numchildren = array_num(proc->p_children);
 		unsigned int i;
 		for (i = 0; i < numchildren; i++) {
+			struct proc *childproc = (struct proc *)array_get(proc->p_children, 0);
+			if (childproc->p_exited == true) {
+				childproc->p_parent = NULL;
+				proc_destroy(childproc);
+			}
 			array_remove(proc->p_children, 0);
 		}
 		array_destroy(proc->p_children);

@@ -56,6 +56,11 @@
  */
 struct proc *kproc;
 
+#if OPT_A2
+volatile unsigned int kpidcounter;
+struct lock *kpidcounter_mutex;
+#endif
+
 /*
  * Mechanism for making the kernel menu thread sleep while processes are running
  */
@@ -103,6 +108,31 @@ proc_create(const char *name)
 	proc->console = NULL;
 #endif // UW
 
+	#if OPT_A2
+	proc->p_mutex = lock_create("p_mutex");
+	if (proc->p_mutex == NULL) {
+		kfree(proc);
+		return NULL;
+	}
+
+	proc->p_exited_cv = cv_create("p_exited_cv");
+	if(proc->p_exited_cv == NULL) {
+		kfree(proc);
+		return NULL;
+	}
+
+	proc->p_children = array_create();
+	array_init(proc->p_children);
+	if (proc->p_children == NULL) {
+		kfree(proc);
+		return NULL;
+	}
+
+	proc->p_parent = NULL;
+	proc->p_exited = false;
+	proc->p_exitcode = 0;
+	#endif
+
 	return proc;
 }
 
@@ -135,6 +165,28 @@ proc_destroy(struct proc *proc)
 		VOP_DECREF(proc->p_cwd);
 		proc->p_cwd = NULL;
 	}
+
+	#if OPT_A2
+	if (proc->p_mutex != NULL) 
+	{
+		lock_destroy(proc->p_mutex);
+	}
+
+	if (proc->p_exited_cv != NULL) 
+	{
+		cv_destroy(proc->p_exited_cv);
+	}
+
+	if (proc->p_children != NULL) 
+	{
+		unsigned int numchildren = array_num(proc->p_children);
+		unsigned int i;
+		for (i = 0; i < numchildren; i++) {
+			array_remove(proc->p_children, 0);
+		}
+		array_destroy(proc->p_children);
+	}
+	#endif
 
 
 #ifndef UW  // in the UW version, space destruction occurs in sys_exit, not here
@@ -197,6 +249,15 @@ proc_bootstrap(void)
   if (kproc == NULL) {
     panic("proc_create for kproc failed\n");
   }
+
+  #if OPT_A2
+  kpidcounter = 1;
+  kpidcounter_mutex = lock_create("kpidcounter_mutex");
+  if (kpidcounter_mutex == NULL) {
+    panic("could not create kpidcounter_mutex lock\n");
+  }
+  #endif
+
 #ifdef UW
   proc_count = 0;
   proc_count_mutex = sem_create("proc_count_mutex",1);
@@ -226,6 +287,20 @@ proc_create_runprogram(const char *name)
 	if (proc == NULL) {
 		return NULL;
 	}
+
+	// Why is it that the system deadlocks if I add this chunk of code at
+	// proc_create()'s definition?
+
+	#if OPT_A2
+	if (kpidcounter != 1) {
+		lock_acquire(kpidcounter_mutex);
+	}
+	proc->p_pid = kpidcounter;
+	kpidcounter++;
+	if (kpidcounter != 2) {
+	lock_release(kpidcounter_mutex);
+	}
+	#endif
 
 #ifdef UW
 	/* open the console - this should always succeed */

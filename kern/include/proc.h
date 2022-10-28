@@ -38,6 +38,11 @@
 
 #include <spinlock.h>
 #include <thread.h> /* required for struct threadarray */
+#include <opt-A2.h>
+#if OPT_A2
+#include <synch.h>
+#include <array.h>
+#endif
 
 struct addrspace;
 struct vnode;
@@ -59,6 +64,18 @@ struct proc {
 	/* VFS */
 	struct vnode *p_cwd;		/* current working directory */
 
+	#if OPT_A2
+	pid_t p_pid; /* process's pid, does this need to be a pointer? */
+	bool p_exited;
+	int p_exitcode;
+
+	struct lock *p_mutex; /* associated lock */
+	struct cv *p_exited_cv;
+
+	struct array *p_children; /* dynamic array to keep track of process's children */
+	struct proc *p_parent;
+	#endif
+
 #ifdef UW
   /* a vnode to refer to the console device */
   /* this is a quick-and-dirty way to get console writes working */
@@ -73,6 +90,11 @@ struct proc {
 
 /* This is the process structure for the kernel and for kernel-only threads. */
 extern struct proc *kproc;
+
+#if OPT_A2
+extern volatile unsigned int kpidcounter;
+extern struct lock *kpidcounter_mutex;
+#endif
 
 /* Semaphore used to signal when there are no more processes */
 #ifdef UW

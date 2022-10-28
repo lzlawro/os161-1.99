@@ -35,7 +35,11 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
-
+#include <opt-A2.h>
+#if OPT_A2
+#include <synch.h>
+#include <proc.h>
+#endif
 
 /*
  * System call dispatcher.
@@ -132,6 +136,12 @@ syscall(struct trapframe *tf)
 #endif // UW
 
 	    /* Add stuff here */
+	
+	#if OPT_A2
+	case SYS_fork:
+		err = sys_fork(tf, (pid_t *)&retval);
+		break;
+	#endif
  
 	default:
 	  kprintf("Unknown syscall %d\n", callno);
@@ -176,8 +186,44 @@ syscall(struct trapframe *tf)
  *
  * Thus, you can trash it and do things another way if you prefer.
  */
+#if OPT_A2
+void
+enter_forked_process(struct trapframe *tf, unsigned long data)
+{
+	(void)data;
+
+	/* copy the parent's trap frame to the OS’s
+       heap, then copy from OS’s heap to child. */
+
+	/* copy trapframe
+	   question: doesn't this only result in only one copy
+	   of trapframe? or this doesn't matter?
+	 */
+
+	// KASSERT(curproc->p_mutex != NULL);
+	// lock_acquire(curproc->p_mutex);
+	// struct trapframe tf_c = *(struct trapframe *)tf;
+	// lock_release(curproc->p_mutex);
+
+	// struct trapframe *tf_old = kmalloc(sizeof(struct trapframe));
+	// KASSERT(tf_old != NULL);
+	// memcpy((void *)tf_old, (void *)tf, sizeof(struct trapframe));
+	// struct trapframe tf_c = *tf_old;
+	// kfree(tf_old);
+
+	struct trapframe *tf_temp = tf;
+	struct trapframe tf_c = *tf_temp;
+
+	tf_c.tf_v0 = 0;
+	tf_c.tf_a3 = 0;
+	tf_c.tf_epc += 4;
+
+	mips_usermode(&tf_c);
+}
+#else
 void
 enter_forked_process(struct trapframe *tf)
 {
 	(void)tf;
 }
+#endif

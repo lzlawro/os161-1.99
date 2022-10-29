@@ -182,11 +182,22 @@ proc_destroy(struct proc *proc)
 		unsigned int i;
 		for (i = 0; i < numchildren; i++) {
 			struct proc *childproc = (struct proc *)array_get(proc->p_children, 0);
-			if (childproc->p_exited == true) {
-				childproc->p_parent = NULL;
-				proc_destroy(childproc);
-			}
 			array_remove(proc->p_children, 0);
+			// if (childproc->p_exited == true) {
+			// 	childproc->p_parent = NULL;
+			// 	proc_destroy(childproc);
+			// }
+
+			/* if a child has not exited yet, wait for it to exit */
+			/* might need to assert p_mutex and p_exited_cv are not NULL?*/
+			lock_acquire(childproc->p_mutex);
+			while (!childproc->p_exited) {
+				cv_wait(childproc->p_exited_cv, childproc->p_mutex);
+			}
+			lock_release(childproc->p_mutex);
+
+			childproc->p_parent = NULL;
+			proc_destroy(childproc);
 		}
 		array_destroy(proc->p_children);
 	}

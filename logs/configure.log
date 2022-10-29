@@ -1,0 +1,6 @@
+Checking for <err.h>... yes
+Generating defs.mk.
+Configuration ASST2
+Generating files... opt-A0.h opt-A1.h opt-A2.h opt-A3.h opt-A4.h opt-A5.h opt-dumbvm.h opt-net.h opt-netfs.h opt-noasserts.h opt-sfs.h opt-synchprobs.h files.mk Makefile autoconf.h autoconf.c
+Configuration in ../compile/ASST2 done
+Remember to bmake depend

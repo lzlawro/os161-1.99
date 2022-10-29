@@ -122,6 +122,15 @@ void sys__exit(int exitcode) {
   /* if this is the last user process in the system, proc_destroy()
      will wake up the kernel menu thread */
   #if OPT_A2
+  // if (p->p_parent != NULL) {
+  //   p->p_exited = true;
+  //   p->p_exitcode = _MKWAIT_EXIT(exitcode);
+
+  //   lock_acquire(p->p_mutex);
+  //   cv_broadcast(p->p_exited_cv, p->p_mutex);
+  //   lock_release(p->p_mutex);
+  // }
+
   p->p_exitcode = _MKWAIT_EXIT(exitcode);
   p->p_exited = true;
 
@@ -132,6 +141,7 @@ void sys__exit(int exitcode) {
   if (p->p_parent == NULL) {
     proc_destroy(p);
   }
+  
   #else
   (void)p_exitcode;
   proc_destroy(p);

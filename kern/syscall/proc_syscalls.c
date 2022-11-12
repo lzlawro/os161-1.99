@@ -69,8 +69,8 @@ int sys_fork(struct trapframe *tf,
 
   struct trapframe *tf_new = kmalloc(sizeof(struct trapframe));
 	KASSERT(tf_new != NULL);
-	// memcpy((void *)tf_new, (void *)tf, sizeof(struct trapframe));
-  *tf_new = *tf;
+	memcpy((void *)tf_new, (void *)tf, sizeof(struct trapframe));
+  // *tf_new = *tf;
 
   int err_thread_fork;
   err_thread_fork =

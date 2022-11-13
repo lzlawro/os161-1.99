@@ -12,6 +12,10 @@
 #include <opt-A2.h>
 #if OPT_A2
 #include <mips/trapframe.h>
+#include <test.h>
+#include <vm.h>
+#include <vfs.h>
+#include <kern/fcntl.h>
 #endif
 
 #if OPT_A2
@@ -53,9 +57,10 @@ int sys_fork(struct trapframe *tf,
   childproc->p_addrspace = childas;
   spinlock_release(&childproc->p_lock);
 
-  /* create parent-child relationship */
+  /* Create parent-child relationship. Set the parent. */
   childproc->p_parent = curproc;
 
+  /* Add the child to the parent's list of children*/
   KASSERT(curproc->p_children != NULL);
   KASSERT(curproc->p_mutex != NULL);
   lock_acquire(curproc->p_mutex);
@@ -64,9 +69,11 @@ int sys_fork(struct trapframe *tf,
             NULL);
   lock_release(curproc->p_mutex);
 
-  /* need to give the child proc the new address space*/
-  /* lookat curproc_setas()*/
+  /* Need to give the child proc the new address space. */
+  /* Look at curproc_setas(). */
 
+  /* Copy the parent's trap frame to the kernel’s
+     heap, then copy from kernel’s heap to child. */
   struct trapframe *tf_new = kmalloc(sizeof(struct trapframe));
 	KASSERT(tf_new != NULL);
 	memcpy((void *)tf_new, (void *)tf, sizeof(struct trapframe));
@@ -86,9 +93,86 @@ int sys_fork(struct trapframe *tf,
     return err_thread_fork;
   }
 
+  /* Return the child's pid. */
   *retval = childproc->p_pid;
 
   return(0);
+}
+#endif
+
+#if OPT_A2
+int sys_execv(userptr_t progname, userptr_t args) {
+
+  /* Argument passing is not implemented yet */
+  (void)args;
+
+  /* Copy the program path from user space into kernel */
+  // char *kprogram = kmalloc(strlen(program) + 1);
+  // if (kprogram == NULL) {
+  //   return ENOMEM;
+  // }
+
+  // strcpy(kprogram, program);
+
+  // kprintf("program path copied into kernel: %s\n", kprogram);
+
+	struct addrspace *as;
+	struct vnode *v;
+	vaddr_t entrypoint, stackptr;
+	int result;
+
+	/* Open the file. */
+	result = vfs_open(progname, O_RDONLY, 0, &v);
+	if (result) {
+		return result;
+	}
+
+  // Unlike runprogram(), for execv(), process structure remains unchanged
+	// /* We should be a new process. */
+	// KASSERT(curproc_getas() == NULL);
+
+	/* Create a new address space. */
+	as = as_create();
+	if (as ==NULL) {
+		vfs_close(v);
+		return ENOMEM;
+	}
+
+  /* Save the old as pointer. */
+  struct addrspace *oldas = curproc_getas();
+
+	/* Switch to it and activate it. */
+	curproc_setas(as);
+	as_activate();
+
+	/* Load the executable. */
+	result = load_elf(v, &entrypoint);
+	if (result) {
+		/* p_addrspace will go away when curproc is destroyed */
+		vfs_close(v);
+		return result;
+	}
+
+	/* Done with the file now. */
+	vfs_close(v);
+
+	/* Define the user stack in the address space */
+	result = as_define_stack(as, &stackptr);
+	if (result) {
+		/* p_addrspace will go away when curproc is destroyed */
+		return result;
+	}
+
+  /* Delete the old address space */
+  as_destroy(oldas);
+
+	/* Warp to user mode. */
+	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
+			  stackptr, entrypoint);
+	
+	/* enter_new_process does not return. */
+	panic("enter_new_process returned\n");
+	return EINVAL;
 }
 #endif
 
@@ -131,13 +215,18 @@ void sys__exit(int exitcode) {
   //   lock_release(p->p_mutex);
   // }
 
+  /* Encode exit code. */
   p->p_exitcode = _MKWAIT_EXIT(exitcode);
+
+  /* Set the custom exited status to true. */
   p->p_exited = true;
 
+  /* Signal the exited process's cv */
   lock_acquire(p->p_mutex);
   cv_broadcast(p->p_exited_cv, p->p_mutex);
   lock_release(p->p_mutex);
 
+  /* If the process does not have a parent, destroy it.*/
   if (p->p_parent == NULL) {
     proc_destroy(p);
   }
@@ -149,7 +238,7 @@ void sys__exit(int exitcode) {
   
   thread_exit();
   /* thread_exit() does not return, so we should never get here */
-  panic("return from thread_exit in sys_exit\n");
+  panic("return from thread_exit in sys__exit\n");
 }
 
 
@@ -199,6 +288,8 @@ sys_waitpid(pid_t pid,
 
   KASSERT(curproc != NULL);
   KASSERT(curproc->p_children != NULL);
+
+  /* Locate the child by its pid. */
   struct proc *childproc = NULL;
   unsigned int numchildren = array_num(curproc->p_children);
   unsigned int i;
@@ -209,11 +300,12 @@ sys_waitpid(pid_t pid,
     }
   }
 
+  /* If the child is not found, produce error. */
   if (childproc == NULL) {
     panic("waitpid() called by wrong process");
   }
 
-  /* wait for the child to exit */
+  /* Wait for the child to exit. */
   lock_acquire(childproc->p_mutex);
   while (!childproc->p_exited) {
     cv_wait(childproc->p_exited_cv, childproc->p_mutex);

@@ -103,23 +103,39 @@ int sys_fork(struct trapframe *tf,
 #if OPT_A2
 int sys_execv(userptr_t progname, userptr_t args) {
 
-  /* Argument passing is not implemented yet */
-  (void)args;
-
   /* Copy the program path from user space into kernel */
-  char *kprogname = kmalloc(sizeof(char) * (strlen(progname) + 1));
+  char *kprogname = kmalloc(sizeof(char) * (strlen((char *)progname) + 1));
   if (kprogname == NULL) {
     return ENOMEM;
   }
 
-  strcpy(kprogname, progname);
+  strcpy(kprogname, (char *)progname);
 
+  /* Count the number of arguments. */
   unsigned int nargs = 0;
-  for (char **p = args; *p != NULL; p++) {
+  for (char **p = (char **)args; *p != NULL; p++) {
     nargs++;
   }
 
-  // kprintf("program path copied into kernel: %s, with %d arguments\n", kprogname, nargs);
+  /* Why does this not work? */
+  // for (int i = 0; i < nargs; i++) {
+  //   kprintf("%s ", args[i]);
+  // }
+
+  /* Create the new args array in kernel memory. */
+  // char **kargs; // Using this initialization causes some weird kernel panic: 
+  char *kargs[nargs+1];
+  *(kargs + nargs) = NULL;
+  for (unsigned int i = 0; i < nargs; i++) {
+    *(kargs + i) = kmalloc(sizeof(char) * (strlen((char *)(*((char **)args + i))) + 1));
+    strcpy(*(kargs + i), (char *)(*((char **)args + i)));
+  }
+
+  // kprintf("copied program name: %s, copied %u arguments: \n", kprogname, nargs);
+  // for (unsigned int i = 0; i < nargs; i++) {
+  //   kprintf("%s ", *(kargs + i));
+  // }
+  // kprintf("\n");
 
 	struct addrspace *as;
 	struct vnode *v;
@@ -127,7 +143,7 @@ int sys_execv(userptr_t progname, userptr_t args) {
 	int result;
 
 	/* Open the file. */
-	result = vfs_open(progname, O_RDONLY, 0, &v);
+	result = vfs_open((char *)progname, O_RDONLY, 0, &v);
 	if (result) {
 		return result;
 	}
@@ -168,8 +184,17 @@ int sys_execv(userptr_t progname, userptr_t args) {
 		return result;
 	}
 
+  /* Copy the arguments from the kernel space into the new address space. */
+  // TODO:
+
   /* Delete the old address space */
   as_destroy(oldas);
+
+  /* Free the kernel-allocated stuff */
+  kfree(kprogname);
+  for (unsigned int i = 0; i < nargs; i++) {
+    kfree(*(kargs + i));
+  }
 
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,

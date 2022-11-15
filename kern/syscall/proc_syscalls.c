@@ -114,7 +114,12 @@ int sys_execv(userptr_t progname, userptr_t args) {
 
   strcpy(kprogname, progname);
 
-  // kprintf("program path copied into kernel: %s\n", kprogname);
+  unsigned int nargs = 0;
+  for (char **p = args; *p != NULL; p++) {
+    nargs++;
+  }
+
+  // kprintf("program path copied into kernel: %s, with %d arguments\n", kprogname, nargs);
 
 	struct addrspace *as;
 	struct vnode *v;

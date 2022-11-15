@@ -107,14 +107,14 @@ int sys_execv(userptr_t progname, userptr_t args) {
   (void)args;
 
   /* Copy the program path from user space into kernel */
-  // char *kprogram = kmalloc(strlen(program) + 1);
-  // if (kprogram == NULL) {
-  //   return ENOMEM;
-  // }
+  char *kprogname = kmalloc(sizeof(char) * (strlen(progname) + 1));
+  if (kprogname == NULL) {
+    return ENOMEM;
+  }
 
-  // strcpy(kprogram, program);
+  strcpy(kprogname, progname);
 
-  // kprintf("program path copied into kernel: %s\n", kprogram);
+  // kprintf("program path copied into kernel: %s\n", kprogname);
 
 	struct addrspace *as;
 	struct vnode *v;

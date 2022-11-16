@@ -210,18 +210,18 @@ int sys_execv(userptr_t progname, userptr_t args) {
   }
   /* Test */
   // ########################################
-  for (char *p = stackptr_start;
-       p != stackptr_start + (argc + 1)*4; p++) {
+  for (unsigned char *p = (unsigned char *)stackptr_start;
+       p != (unsigned char *)(stackptr_start + (argc + 1)*4); p++) {
         if ((unsigned int)p % 4 == 0) {
           kprintf("%x:\t", (unsigned int)p);
         }
-        // kprintf("%x", *p);
+        kprintf("%2x\t", *p);
         if ((unsigned int)p % 4 == 3) {
           kprintf("\n");
         }
        }
-  for (char *p = stackptr_start + (argc + 1)*4;
-       p != USERSTACK; p++) {
+  for (unsigned char *p = (unsigned char *)stackptr_start + (argc + 1)*4;
+       p != (unsigned char *)USERSTACK; p++) {
         if ((unsigned int)p % 4 == 0) {
           kprintf("%x:\t", (unsigned int)p);
         }
@@ -248,7 +248,8 @@ int sys_execv(userptr_t progname, userptr_t args) {
 	/* Warp to user mode. */
 	// enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
 	// 		  stackptr, entrypoint);
-  enter_new_process(argc, args, stackptr_start, entrypoint);
+  enter_new_process(argc, ROUNDUP((unsigned int)args, 4),
+                    stackptr_start, entrypoint);
 	
 	/* enter_new_process does not return. */
 	panic("enter_new_process returned\n");

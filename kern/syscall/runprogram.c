@@ -52,8 +52,36 @@
  * Calls vfs_open on progname and thus may destroy it.
  */
 int
-runprogram(char *progname)
+runprogram(char *progname, unsigned int nargs, char **args)
 {
+	/* Copy the program path from user space into kernel */
+  char *kprogname = kmalloc(sizeof(char) * (strlen((char *)progname) + 1));
+  if (kprogname == NULL) {
+    return ENOMEM;
+  }
+
+  strcpy(kprogname, (char *)progname);
+
+  /* Why does this not work? */
+  // for (int i = 0; i < nargs; i++) {
+  //   kprintf("%s ", args[i]);
+  // }
+
+  /* Create the new args array in kernel memory. */
+  // char **kargs; // Using this initialization causes some weird kernel panic: 
+  char *kargs[nargs+1];
+  *(kargs + nargs) = NULL;
+  for (unsigned int i = 0; i < nargs; i++) {
+    *(kargs + i) = kmalloc(sizeof(char) * (strlen((char *)(*((char **)args + i))) + 1));
+    strcpy(*(kargs + i), (char *)(*((char **)args + i)));
+  }
+
+  // kprintf("copied program name: %s, copied %u arguments: \n", kprogname, nargs);
+  // for (unsigned int i = 0; i < nargs; i++) {
+  //   kprintf("%s ", *(kargs + i));
+  // }
+  // kprintf("\n");
+
 	struct addrspace *as;
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
@@ -97,9 +125,76 @@ runprogram(char *progname)
 		return result;
 	}
 
+	/* Compute the total space required for copying args. */
+  unsigned int args_size = 0;
+  args_size += (nargs + 1)*4;
+
+  for (unsigned int i = 0; i < nargs; i++) {
+    args_size += strlen(*(kargs + i)) + 1;
+  }
+
+  args_size = ROUNDUP(args_size, 8);
+
+  /* Save the stack pointer to the top of the stack. */
+  vaddr_t stackptr_start = USERSTACK - args_size;
+
+  /* Move the stack pointer to the start of arg strings. */
+  stackptr = stackptr_start + (nargs + 1)*4;
+
+  /* Keep track of the addrs of strings while copying
+     individual strings. */
+  
+  for (unsigned int i = 0; i < nargs; i++) {
+    memcpy((void *)stackptr, *(kargs + i), strlen(*(kargs + i)) + 1);
+    memcpy((void *)(stackptr_start + i*sizeof(vaddr_t)),
+           &stackptr, sizeof(vaddr_t));
+    stackptr += strlen(*(kargs + i)) + 1;
+  }
+  /* Test */
+  /*
+  // ########################################
+  for (unsigned char *p = (unsigned char *)stackptr_start;
+       p != (unsigned char *)(stackptr_start + (nargs + 1)*4); p++) {
+        if ((unsigned int)p % 4 == 0) {
+          kprintf("%x:\t", (unsigned int)p);
+        }
+        if (*p == '\0') {
+          kprintf("\\0\t");
+        }
+        else {
+        kprintf("%2x\t", *p);
+        }
+        if ((unsigned int)p % 4 == 3) {
+          kprintf("\n");
+        }
+       }
+  for (unsigned char *p = (unsigned char *)stackptr_start + (nargs + 1)*4;
+       p != (unsigned char *)USERSTACK; p++) {
+        if ((unsigned int)p % 4 == 0) {
+          kprintf("%x:\t", (unsigned int)p);
+        }
+        if (*p == '\0') {
+          kprintf("\\0\t");
+        } else {
+          kprintf("%c\t", *p);
+        }
+        if ((unsigned int)p % 4 == 3) {
+          kprintf("\n");
+        }
+       }
+  */
+  // ########################################
+
+	/* Free the kernel-allocated stuff */
+  kfree(kprogname);
+  for (unsigned int i = 0; i < nargs; i++) {
+    kfree(*(kargs + i));
+  }
+
 	/* Warp to user mode. */
-	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
-			  stackptr, entrypoint);
+	// enter_new_process(0, /*argc*/, NULL /*userspace addr of argv*/,
+	// 		  stackptr, entrypoint);
+	enter_new_process(nargs, (userptr_t)stackptr_start, stackptr_start, entrypoint);
 	
 	/* enter_new_process does not return. */
 	panic("enter_new_process returned\n");

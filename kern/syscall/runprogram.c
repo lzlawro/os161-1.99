@@ -187,8 +187,10 @@ runprogram(char *progname, unsigned int nargs, char **args)
 
 	/* Free the kernel-allocated stuff */
   kfree(kprogname);
+  kprogname = NULL;
   for (unsigned int i = 0; i < nargs; i++) {
     kfree(*(kargs + i));
+	*(kargs + i) = NULL;
   }
 
 	/* Warp to user mode. */

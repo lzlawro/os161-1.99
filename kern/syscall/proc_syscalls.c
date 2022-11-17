@@ -255,7 +255,7 @@ int sys_execv(userptr_t progname, userptr_t args) {
 	/* Warp to user mode. */
 	// enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
 	// 		  stackptr, entrypoint);
-  enter_new_process(argc, stackptr_start, stackptr_start, entrypoint);
+  enter_new_process(argc, (userptr_t)stackptr_start, stackptr_start, entrypoint);
 	
 	/* enter_new_process does not return. */
 	panic("enter_new_process returned\n");

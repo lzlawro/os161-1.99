@@ -209,13 +209,19 @@ int sys_execv(userptr_t progname, userptr_t args) {
     stackptr += strlen(*(kargs + i)) + 1;
   }
   /* Test */
+  /*
   // ########################################
   for (unsigned char *p = (unsigned char *)stackptr_start;
        p != (unsigned char *)(stackptr_start + (argc + 1)*4); p++) {
         if ((unsigned int)p % 4 == 0) {
           kprintf("%x:\t", (unsigned int)p);
         }
+        if (*p == '\0') {
+          kprintf("\\0\t");
+        }
+        else {
         kprintf("%2x\t", *p);
+        }
         if ((unsigned int)p % 4 == 3) {
           kprintf("\n");
         }
@@ -234,6 +240,7 @@ int sys_execv(userptr_t progname, userptr_t args) {
           kprintf("\n");
         }
        }
+  */
   // ########################################
 
   /* Delete the old address space */
@@ -248,8 +255,7 @@ int sys_execv(userptr_t progname, userptr_t args) {
 	/* Warp to user mode. */
 	// enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
 	// 		  stackptr, entrypoint);
-  enter_new_process(argc, ROUNDUP((unsigned int)args, 4),
-                    stackptr_start, entrypoint);
+  enter_new_process(argc, stackptr_start, stackptr_start, entrypoint);
 	
 	/* enter_new_process does not return. */
 	panic("enter_new_process returned\n");

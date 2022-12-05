@@ -115,6 +115,10 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	struct addrspace *as;
 	int spl;
 
+	#if OPT_A3
+	bool code_segment = false;
+	#endif
+
 	faultaddress &= PAGE_FRAME;
 
 	DEBUG(DB_VM, "dumbvm: fault: 0x%x\n", faultaddress);
@@ -171,6 +175,9 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	if (faultaddress >= vbase1 && faultaddress < vtop1) {
 		paddr = (faultaddress - vbase1) + as->as_pbase1;
+		#if OPT_A3
+		code_segment = true;
+		#endif
 	}
 	else if (faultaddress >= vbase2 && faultaddress < vtop2) {
 		paddr = (faultaddress - vbase2) + as->as_pbase2;
@@ -195,6 +202,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		}
 		ehi = faultaddress;
 		elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+		#if OPT_A3
+		if (as->as_loaded && code_segment){
+			elo &= ~TLBLO_DIRTY;
+		}
+		#endif
 		DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
 		tlb_write(ehi, elo, i);
 		splx(spl);
@@ -204,6 +216,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	ehi = faultaddress;
 	elo = paddr | TLBLO_DIRTY | TLBLO_VALID;
+	#if OPT_A3
+	if (as->as_loaded && code_segment){
+		elo &= ~TLBLO_DIRTY;
+	}
+	#endif
 	tlb_random(ehi, elo);
 	splx(spl);
 	return 0;

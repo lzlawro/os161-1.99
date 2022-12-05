@@ -232,6 +232,9 @@ as_create(void)
 	as->as_pbase2 = 0;
 	as->as_npages2 = 0;
 	as->as_stackpbase = 0;
+	#if OPT_A3
+	as->as_loaded = false;
+	#endif
 
 	return as;
 }
@@ -350,7 +353,12 @@ as_prepare_load(struct addrspace *as)
 int
 as_complete_load(struct addrspace *as)
 {
+	#if OPT_A3
+	as->as_loaded = true;
+	#else
 	(void)as;
+	#endif
+
 	return 0;
 }
 

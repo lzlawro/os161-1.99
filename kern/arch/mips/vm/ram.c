@@ -31,6 +31,7 @@
 #include <lib.h>
 #include <vm.h>
 #include <mainbus.h>
+#include <opt-A3.h>
 
 
 vaddr_t firstfree;   /* first free virtual address; set by start.S */
@@ -122,5 +123,9 @@ ram_getsize(paddr_t *lo, paddr_t *hi)
 {
 	*lo = firstpaddr;
 	*hi = lastpaddr;
+
+	#if OPT_A3
+	#else
 	firstpaddr = lastpaddr = 0;
+	#endif
 }

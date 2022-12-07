@@ -52,10 +52,34 @@
  */
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 
+#if OPT_A3
+static unsigned int core_map_lo;
+static unsigned int core_map_hi;
+static unsigned int core_map_npages;
+
+static bool core_map_created = false;
+
+static struct spinlock core_map_lock = SPINLOCK_INITIALIZER;
+#endif
+
 void
 vm_bootstrap(void)
 {
+	#if OPT_A3
+
+	ram_getsize(&core_map_lo, &core_map_hi);
+
+	core_map_npages = (core_map_hi - core_map_lo) / PAGE_SIZE;
+
+	for (unsigned int i = 0; i < core_map_npages; i++) {
+		*((unsigned char *)(PADDR_TO_KVADDR(core_map_lo)) + i) = 0;
+	}
+
+	core_map_created = true;
+
+	#else
 	/* Do nothing. */
+	#endif
 }
 
 static
@@ -63,12 +87,61 @@ paddr_t
 getppages(unsigned long npages)
 {
 	paddr_t addr;
+	#if OPT_A3
+	if (core_map_created) {
+		spinlock_acquire(&core_map_lock);
 
+		unsigned int i = 0;
+
+		/*Use core-map version 2*/
+		while (i < core_map_npages) {
+			unsigned int j = i;
+			unsigned int current_entry = *((unsigned char *)(PADDR_TO_KVADDR(core_map_lo)) + i);
+			unsigned int page_count = 0;
+
+			bool completed = false;
+
+			while (current_entry == 0 &&
+				j + page_count < core_map_npages) {
+				page_count += 1;
+
+				/* If the pointer has reached the core_map entry specified by npages*/
+				if (page_count == npages) {
+					i = j;
+
+					/* Set the core_map entries to incrementing values */
+					for (unsigned int k = 1; k < npages + 1; k++) {
+						*((unsigned char *)(PADDR_TO_KVADDR(core_map_lo)) + i) = k;
+						i++;
+					}
+
+					addr = core_map_lo + j*PAGE_SIZE;
+					completed = true;
+					break;
+				}
+				if (completed) break;
+				i++;
+				current_entry = *((unsigned char *)(PADDR_TO_KVADDR(core_map_lo)) + i);
+			}
+			if (completed) break;
+			i++;
+		}
+
+		spinlock_release(&core_map_lock);
+	} else {
+		spinlock_acquire(&stealmem_lock);
+
+		addr = ram_stealmem(npages);
+	
+		spinlock_release(&stealmem_lock);
+	}
+	#else
 	spinlock_acquire(&stealmem_lock);
 
 	addr = ram_stealmem(npages);
 	
 	spinlock_release(&stealmem_lock);
+	#endif
 	return addr;
 }
 

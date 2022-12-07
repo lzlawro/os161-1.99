@@ -160,9 +160,13 @@ alloc_kpages(int npages)
 void 
 free_kpages(vaddr_t addr)
 {
+	#if OPT_A3
+	/* Don't have time for this... */
+	#else
 	/* nothing - leak the memory. */
 
 	(void)addr;
+	#endif
 }
 
 void
